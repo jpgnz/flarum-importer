@@ -158,3 +158,74 @@
     color: var(--muted-color);
   }
 }
+
+.RedirectsPanel {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--control-bg);
+
+  // The admin page gives custom settings no rhythm of their own, so every
+  // label sits directly on the control above it. Give each group room.
+  .Form-group {
+    margin-bottom: 18px;
+  }
+
+  .ImporterPage-intro {
+    margin-bottom: 20px;
+  }
+
+  &-alert {
+    margin: 12px 0;
+  }
+
+  &-empty {
+    margin: 0;
+  }
+
+  &-examples {
+    margin: 20px 0 24px;
+  }
+
+  .ImporterPage-actions {
+    margin-top: 4px;
+  }
+
+  &-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    td {
+      padding: 5px 0;
+      vertical-align: top;
+      border-top: 1px solid var(--control-bg);
+    }
+
+    code {
+      // Old forum URLs are long and full of query strings; let them wrap
+      // rather than push the panel sideways on a narrow screen.
+      word-break: break-all;
+      background: var(--control-bg);
+      color: var(--control-color);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+  }
+
+  &-arrow {
+    width: 2em;
+    text-align: center;
+    color: var(--muted-color);
+  }
+
+  // Narrow enough that the arrow sits beside the old address rather than
+  // stranded in the middle of the row, wide enough for a long query string.
+  &-from {
+    width: 38%;
+  }
+
+  // A row that resolves to nothing still shows, deliberately — it is the most
+  // useful thing on the screen when something is set up wrong.
+  tr.is-unresolved &-from code {
+    opacity: 0.6;
+  }
+}

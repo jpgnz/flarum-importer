@@ -66,3 +66,45 @@ export function importStatus(runId?: number): Promise<ImportStatus> {
 export function resetImport(runId?: number): Promise<any> {
   return app.request({ method: 'POST', url: `${base()}/importer/reset`, body: runId ? { runId } : {} });
 }
+
+export interface RedirectRun {
+  id: number;
+  source: string;
+  status: string;
+  created_at: string | null;
+  counts: { topic: number; tag: number; user: number };
+}
+
+export interface RedirectExample {
+  kind: string;
+  from: string;
+  to: string | null;
+}
+
+export interface RedirectState {
+  enabled: boolean;
+  saved: { runId: number; source: string };
+  runs: RedirectRun[];
+  sources: { key: string; label: string }[];
+  selected: { runId: number; source: string };
+  known: boolean;
+  examples: RedirectExample[];
+}
+
+/** What redirects would do, before anybody turns them on. */
+export function redirectState(runId?: number, source?: string): Promise<RedirectState> {
+  const q: string[] = [];
+  if (runId) q.push(`runId=${runId}`);
+  if (source) q.push(`source=${encodeURIComponent(source)}`);
+  return app.request({ method: 'GET', url: `${base()}/importer/redirects${q.length ? '?' + q.join('&') : ''}` });
+}
+
+/**
+ * Turn redirects on for one run, or off.
+ *
+ * Rejects with a 422 carrying `reason` when the combination would resolve
+ * nothing — an empty map, an unknown platform, a run that no longer exists.
+ */
+export function saveRedirects(enabled: boolean, runId?: number, source?: string): Promise<any> {
+  return app.request({ method: 'POST', url: `${base()}/importer/redirects`, body: { enabled, runId, source }, errorHandler: (e: any) => { throw e; } });
+}
