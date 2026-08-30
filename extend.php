@@ -9,6 +9,7 @@
 
 use ErnestDefoe\Importer\Api\Controller;
 use ErnestDefoe\Importer\Console\RunImportCommand;
+use ErnestDefoe\Importer\Notification\FilterMutedPrivateMessageRecipients;
 use ErnestDefoe\Importer\Redirects;
 use Flarum\Extend;
 
@@ -21,6 +22,9 @@ return [
 
     (new Extend\Console())
         ->command(RunImportCommand::class),
+
+    (new Extend\Notification())
+        ->beforeSending(FilterMutedPrivateMessageRecipients::class),
 
     /*
      * 🚨 Old addresses, 301'd to where the content went.
@@ -53,6 +57,7 @@ return [
         ->post('/importer/test', 'importer.test', Controller\TestConnectionController::class)
         ->post('/importer/upload', 'importer.upload', Controller\UploadController::class)
         ->post('/importer/start', 'importer.start', Controller\StartImportController::class)
+        ->post('/importer/resume', 'importer.resume', Controller\ResumeController::class)
         ->post('/importer/step', 'importer.step', Controller\StepController::class)
         ->post('/importer/reset', 'importer.reset', Controller\ResetController::class)
         ->get('/importer/status', 'importer.status', Controller\StatusController::class)
