@@ -10,8 +10,8 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
-/** Process ONE bounded batch of a running import. The admin page calls this in a loop. */
-class StepController implements RequestHandlerInterface
+/** Explicitly retry a failed shared-hosting run. */
+class ResumeController implements RequestHandlerInterface
 {
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
@@ -23,9 +23,9 @@ class StepController implements RequestHandlerInterface
         }
 
         try {
-            return new JsonResponse(Runner::step($runId, Runner::MODE_SHARED));
-        } catch (\Throwable $e) {
-            return new JsonResponse(['error' => $e->getMessage()], 422);
+            return new JsonResponse(Runner::resume($runId, Runner::MODE_SHARED));
+        } catch (\Throwable $error) {
+            return new JsonResponse(['error' => $error->getMessage()], 422);
         }
     }
 }

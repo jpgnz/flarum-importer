@@ -1,7 +1,7 @@
 import app from 'flarum/admin/app';
 import Component from 'flarum/common/Component';
 import Button from 'flarum/common/components/Button';
-import { testConnection, uploadDump, startImport, stepImport, importStatus, resetImport, type ImportStatus, type TestResult, type SourceConfig } from '../../common/api';
+import { testConnection, uploadDump, startImport, resumeImport, stepImport, importStatus, resetImport, type ImportStatus, type TestResult, type SourceConfig } from '../../common/api';
 
 declare const m: any;
 const t = (k: string, p?: any): any => app.translator.trans('ernestdefoe-importer.admin.' + k, p);
@@ -56,10 +56,11 @@ export default class ImporterPage extends Component {
   oninit(vnode: any) {
     super.oninit(vnode);
     importStatus().then((s) => {
-      if (s.runId && s.running) {
+      if (s.runId && (s.running || s.failed)) {
         this.status = s;
         this.runId = s.runId;
-        this.loop();
+        if (s.readOnly) this.watch();
+        else if (s.running) this.loop();
         m.redraw();
       }
     });
@@ -155,6 +156,33 @@ export default class ImporterPage extends Component {
     }
   }
 
+  async watch() {
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    while (this.runId && this.status.readOnly && !this.status.done && !this.status.failed && !this.stopped) {
+      await sleep(1200);
+      this.status = await importStatus(this.runId);
+      m.redraw();
+    }
+  }
+
+  resume() {
+    if (!this.runId) return;
+    this.starting = true;
+    resumeImport(this.runId)
+      .then((status) => {
+        this.status = status;
+        this.loop();
+      })
+      .catch((e: any) => {
+        const message = e && e.response && e.response.error ? e.response.error : t('resume_failed');
+        this.status = { ...this.status, status: message };
+      })
+      .finally(() => {
+        this.starting = false;
+        m.redraw();
+      });
+  }
+
   reset() {
     resetImport(this.runId ?? undefined).then(() => {
       this.runId = null;
@@ -204,6 +232,7 @@ export default class ImporterPage extends Component {
                 !src.noUsername && this.field('username', t('username'), 'text'),
                 this.field('password', t('password'), 'password'),
                 src.needsPrefix && this.field('prefix', t('prefix'), 'text', '160px'),
+                this.source === 'invision' && this.field('uploads_root', t('uploads_root'), 'text'),
               ])
             : m('.ImporterPage-upload', [
                 m('.Form-group', [
@@ -255,10 +284,12 @@ export default class ImporterPage extends Component {
       ]),
       m('.ImporterPage-bar', m('.ImporterPage-barFill', { className: failed ? 'is-failed' : '', style: `width:${pct}%` })),
       m('p.ImporterPage-status', this.status.status || ''),
+      this.status.readOnly && m('p.helpText', t('cli_read_only')),
       Object.keys(summary).length > 0 &&
         m('.ImporterPage-counts', Object.keys(summary).map((k) => m('span.ImporterPage-count', [m('b', (summary[k] || 0).toLocaleString()), ' ', k]))),
       this.status.lastStatus && m('p.helpText', this.status.lastStatus),
-      (done || failed) && m('.ImporterPage-actions', [m(Button, { className: 'Button', onclick: () => this.reset() }, t('import_another'))]),
+      failed && this.status.resumable && m('.ImporterPage-actions', [m(Button, { className: 'Button Button--primary', loading: this.starting, onclick: () => this.resume() }, t('resume'))]),
+      (done || failed) && !this.status.readOnly && m('.ImporterPage-actions', [m(Button, { className: 'Button', onclick: () => this.reset() }, t('import_another'))]),
     ]);
   }
 }

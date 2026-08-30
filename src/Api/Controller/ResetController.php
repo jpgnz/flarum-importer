@@ -18,8 +18,12 @@ class ResetController implements RequestHandlerInterface
         RequestUtil::getActor($request)->assertAdmin();
 
         $runId = (int) Arr::get((array) $request->getParsedBody(), 'runId', 0);
-        if ($runId) {
-            Runner::reset($runId);
+        try {
+            if ($runId) {
+                Runner::reset($runId, Runner::MODE_SHARED);
+            }
+        } catch (\Throwable $error) {
+            return new JsonResponse(['error' => $error->getMessage()], 422);
         }
 
         return new JsonResponse(['ok' => true]);

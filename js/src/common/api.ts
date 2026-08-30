@@ -9,6 +9,7 @@ export interface SourceConfig {
   password?: string;
   prefix?: string;
   file?: string; // handle from an uploaded dump
+  uploads_root?: string;
 }
 
 export interface TestResult {
@@ -27,6 +28,11 @@ export interface ImportStatus {
   status?: string | null;
   summary?: Record<string, number>;
   lastStatus?: string | null;
+  executionMode?: 'shared' | 'cli';
+  readOnly?: boolean;
+  resumable?: boolean;
+  baseRunId?: number | null;
+  diagnostics?: Record<string, number>;
 }
 
 const base = (): string => app.forum.attribute('apiUrl');
@@ -49,8 +55,12 @@ export function uploadDump(source: string, prefix: string, file: File): Promise<
   }).then((r) => r.json());
 }
 
-export function startImport(source: string, config: SourceConfig): Promise<ImportStatus> {
-  return app.request({ method: 'POST', url: `${base()}/importer/start`, body: { source, config } });
+export function startImport(source: string, config: SourceConfig, baseRunId?: number): Promise<ImportStatus> {
+  return app.request({ method: 'POST', url: `${base()}/importer/start`, body: { source, config, baseRunId } });
+}
+
+export function resumeImport(runId: number): Promise<ImportStatus> {
+  return app.request({ method: 'POST', url: `${base()}/importer/resume`, body: { runId } });
 }
 
 /** Process one bounded batch of a running import. */

@@ -36,7 +36,13 @@
         "color": "#fff"
       },
       "optional-dependencies": [
-        "flarum/tags"
+        "flarum/tags",
+        "fof/upload",
+        "fof/reactions",
+        "fof/polls",
+        "fof/byobu",
+        "fof/masquerade",
+        "fof/signature"
       ]
     },
     "flarum-cli": {

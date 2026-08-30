@@ -21,13 +21,14 @@ class StartImportController implements RequestHandlerInterface
         $body = (array) $request->getParsedBody();
         $source = (string) Arr::get($body, 'source', '');
         $cfg = (array) Arr::get($body, 'config', []);
+        $baseRunId = (int) Arr::get($body, 'baseRunId', 0) ?: null;
 
         if (! Registry::get($source)) {
             return new JsonResponse(['error' => 'Unknown import source.'], 422);
         }
 
         try {
-            return new JsonResponse(Runner::start($source, $cfg));
+            return new JsonResponse(Runner::start($source, $cfg, Runner::MODE_SHARED, $baseRunId));
         } catch (\Throwable $e) {
             return new JsonResponse(['error' => $e->getMessage()], 422);
         }
