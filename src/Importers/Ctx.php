@@ -199,6 +199,6 @@ class Ctx
         $message = preg_replace('~([a-z][a-z0-9+.-]*://[^:/\s]+:)[^@\s]+@~i', '$1[redacted]@', $message) ?? $message;
         $message = preg_replace('/\b(password|passwd|secret|token)\s*[=:]\s*\S+/i', '$1=[redacted]', $message) ?? $message;
 
-        return preg_replace('~(?<![\w.])(?:/[\w.~-]+){2,}|[A-Za-z]:[\\\\/](?:[^\s\\\\/]+[\\\\/])+[^\s]+~', '[redacted]', $message) ?? $message;
+        return preg_replace('#(?<![\w.])(?:/[\w.~-]+){2,}|[A-Za-z]:[\\\\/](?:[^\s\\\\/]+[\\\\/])+[^\s]+#', '[redacted]', $message) ?? $message;
     }
 }
