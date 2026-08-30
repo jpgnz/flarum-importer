@@ -95,16 +95,22 @@ class RunImportCommand extends AbstractCommand
             }
 
             $runId = (int) $start['runId'];
-            $this->info('Import run ID: ' . $runId);
-            $last = -1;
+            $this->info(sprintf('[%s] Import run ID: %d', date('Y-m-d H:i:s'), $runId));
+            $lastPercent = -1;
+            $lastStatus = null;
+            $lastOutputAt = 0;
             // Same generous cap the queued job uses (200 rows/step → up to 1e9
             // rows), so a state machine that never reaches done/failed can't spin
             // this process forever.
             for ($i = 0; $i < self::MAX_STEPS; $i++) {
                 $st = Runner::step($runId, Runner::MODE_CLI);
-                if ($st['percent'] !== $last) {
-                    $this->info(sprintf('[%3d%%] %s', $st['percent'], $st['status']));
-                    $last = $st['percent'];
+                $now = time();
+                $status = (string) ($st['status'] ?? 'Working...');
+                if ($st['percent'] !== $lastPercent || $status !== $lastStatus || $now - $lastOutputAt >= 60) {
+                    $this->info(sprintf('[%s] [%3d%%] run %d: %s', date('Y-m-d H:i:s'), $st['percent'], $runId, $status));
+                    $lastPercent = $st['percent'];
+                    $lastStatus = $status;
+                    $lastOutputAt = $now;
                 }
                 if (! empty($st['failed'])) {
                     $this->error($st['status']);
