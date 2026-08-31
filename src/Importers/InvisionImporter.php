@@ -263,6 +263,7 @@ class InvisionImporter
                     $rootIds = self::forumRootIds($ctx->src(), $rows->pluck('forum_id')->all());
                     $rootMap = $ctx->mapGet('tag', array_values($rootIds));
                     $map = [];
+                    $tagRelations = [];
                     $n = $skip = 0;
                     foreach ($rows as $t) {
                         $sourceId = (int) $t->tid;
@@ -291,12 +292,13 @@ class InvisionImporter
                             $ctx->diagnostic('warning', 'ips_topic_author_unmapped', 'Imported IPS topic without its unmapped source author.', 'topic', $sourceId, $did);
                         }
                         $map[$sourceId] = $did;
-                        Dst::attachTag($did, $rootTag);
+                        $tagRelations[] = [$did, $rootTag];
                         if ($forumTag !== $rootTag) {
-                            Dst::attachTag($did, $forumTag);
+                            $tagRelations[] = [$did, $forumTag];
                         }
                         $n++;
                     }
+                    Dst::attachNewTags($tagRelations);
                     $ctx->mapPut('topic', $map);
 
                     return ['cursor' => (int) $cursor, 'processed' => count($rows), 'done' => count($rows) < $limit, 'summary' => ['topics' => $n, 'skipped' => $skip]];
@@ -1450,7 +1452,12 @@ class InvisionImporter
     private static function postsBatch($cursor, int $limit, Ctx $ctx): array
     {
         $cur = is_array($cursor) ? $cursor : ['tid' => 0, 'rank' => 0, 'at' => 0, 'pid' => 0, 'num' => 0];
-        $query = self::selectedPosts($ctx->src())->where(function ($query) use ($cur) {
+        // Restrict the expensive computed ordering to the current topic plus
+        // enough following topics to guarantee a full page of visible posts.
+        $topicIds = self::selectedTopics($ctx->src())
+            ->where('t.tid', '>=', (int) $cur['tid'])
+            ->orderBy('t.tid')->limit($limit + 1)->pluck('t.tid')->all();
+        $query = self::selectedPosts($ctx->src())->whereIn('p.topic_id', $topicIds)->where(function ($query) use ($cur) {
             $query->where('p.topic_id', '>', (int) $cur['tid'])
                 ->orWhere(function ($query) use ($cur) {
                     $query->where('p.topic_id', (int) $cur['tid'])->where(function ($query) use ($cur) {

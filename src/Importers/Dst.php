@@ -20,12 +20,16 @@ class Dst
     private static ?ConnectionInterface $db = null;
     private static ?Formatter $formatter = null;
     private static ?HtmlConverter $html = null;
+    private static array $tables = [];
+    private static array $columns = [];
 
     public static function reset(): void
     {
         self::$db = null;
         self::$formatter = null;
         self::$html = null;
+        self::$tables = [];
+        self::$columns = [];
     }
 
     public static function db(): ConnectionInterface
@@ -50,13 +54,16 @@ class Dst
 
     public static function hasTags(): bool
     {
-        return self::db()->getSchemaBuilder()->hasTable('tags');
+        return self::hasTable('tags');
     }
 
     public static function hasTable(string $table): bool
     {
+        if (array_key_exists($table, self::$tables)) {
+            return self::$tables[$table];
+        }
         try {
-            return self::db()->getSchemaBuilder()->hasTable($table);
+            return self::$tables[$table] = self::db()->getSchemaBuilder()->hasTable($table);
         } catch (\Throwable) {
             return false;
         }
@@ -64,8 +71,12 @@ class Dst
 
     public static function hasColumn(string $table, string $col): bool
     {
+        $key = $table . '.' . $col;
+        if (array_key_exists($key, self::$columns)) {
+            return self::$columns[$key];
+        }
         try {
-            return self::db()->getSchemaBuilder()->hasColumn($table, $col);
+            return self::$columns[$key] = self::db()->getSchemaBuilder()->hasColumn($table, $col);
         } catch (\Throwable) {
             return false;
         }
@@ -377,6 +388,27 @@ class Dst
                 $row['created_at'] = Carbon::now();
             }
             $db->table('discussion_tag')->insert($row);
+        }
+    }
+
+    /** Attach tags to discussions created in the current transaction. */
+    public static function attachNewTags(array $relations): void
+    {
+        if (! $relations) {
+            return;
+        }
+
+        $createdAt = self::hasColumn('discussion_tag', 'created_at') ? Carbon::now() : null;
+        $rows = [];
+        foreach ($relations as [$discussionId, $tagId]) {
+            $row = ['discussion_id' => (int) $discussionId, 'tag_id' => (int) $tagId];
+            if ($createdAt !== null) {
+                $row['created_at'] = $createdAt;
+            }
+            $rows[$discussionId . ':' . $tagId] = $row;
+        }
+        foreach (array_chunk(array_values($rows), 200) as $chunk) {
+            self::db()->table('discussion_tag')->insert($chunk);
         }
     }
 

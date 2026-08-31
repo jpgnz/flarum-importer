@@ -14,6 +14,8 @@ class Src
 {
     public const CONN = 'importer_src';
 
+    private static ?string $connectionHash = null;
+
     /**
      * Build a runtime read connection to the source database (MySQL, PostgreSQL
      * for Discourse, or SQLite for fixtures). Registers a named connection on
@@ -81,11 +83,15 @@ class Src
 
         /** @var \Illuminate\Contracts\Config\Repository $config */
         $config = resolve('config');
-        $config->set('database.connections.' . self::CONN, $conf);
-
         /** @var \Illuminate\Database\DatabaseManager $db */
         $db = resolve('db');
-        $db->purge(self::CONN);
+
+        $connectionHash = hash('sha256', serialize($conf));
+        if (! hash_equals(self::$connectionHash ?? '', $connectionHash)) {
+            $config->set('database.connections.' . self::CONN, $conf);
+            $db->purge(self::CONN);
+            self::$connectionHash = $connectionHash;
+        }
 
         return $db->connection(self::CONN);
     }
