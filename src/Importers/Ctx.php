@@ -38,7 +38,9 @@ class Ctx
             $wanted[(string) $srcId] = (int) $targetId;
         }
 
-        foreach (array_chunk(array_keys($wanted), 500) as $sourceIds) {
+        // PHP casts numeric-string array keys to int; source_id is VARCHAR, so
+        // binding ints would defeat the (run_id, kind, source_id) index.
+        foreach (array_chunk(array_map('strval', array_keys($wanted)), 500) as $sourceIds) {
             $existing = Dst::db()->table('importer_map')
                 ->where('run_id', $this->runId)
                 ->where('kind', $kind)
@@ -120,7 +122,7 @@ class Ctx
         }
 
         if ($this->baseRunId && count($out) < count($srcIds)) {
-            $missing = array_values(array_diff($srcIds, array_keys($out)));
+            $missing = array_values(array_map('strval', array_diff($srcIds, array_keys($out))));
             foreach (array_chunk($missing, 1000) as $chunk) {
                 $rows = Dst::db()->table('importer_map')
                     ->where('run_id', $this->baseRunId)->where('kind', $kind)

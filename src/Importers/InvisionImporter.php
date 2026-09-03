@@ -677,7 +677,15 @@ class InvisionImporter
     private static function privatePostsBatch($cursor, int $limit, Ctx $ctx): array
     {
         $cur = is_array($cursor) ? $cursor : ['tid' => 0, 'rank' => 0, 'at' => 0, 'pid' => 0, 'num' => 0];
+        $topicIds = $ctx->src()->table('core_message_topics as t')
+            ->join('core_message_posts as fp', function ($join) {
+                $join->on('fp.msg_id', '=', 't.mt_first_msg_id')->on('fp.msg_topic_id', '=', 't.mt_id')->where('fp.msg_is_first_post', 1);
+            })
+            ->where('t.mt_is_draft', 0)->where('t.mt_is_deleted', 0)->where('t.mt_is_system', 0)
+            ->where('t.mt_id', '>=', (int) $cur['tid'])
+            ->orderBy('t.mt_id')->limit($limit + 1)->pluck('t.mt_id')->all();
         $rows = $ctx->src()->table('core_message_posts as p')->join('core_message_topics as t', 't.mt_id', '=', 'p.msg_topic_id')
+            ->whereIn('p.msg_topic_id', $topicIds)
             ->where(function ($query) use ($cur) {
                 $query->where('p.msg_topic_id', '>', (int) $cur['tid'])
                     ->orWhere(function ($query) use ($cur) {
@@ -829,7 +837,12 @@ class InvisionImporter
 
     private static function selectedTopics($conn)
     {
-        return $conn->table('forums_topics as t')
+        // MariaDB may otherwise start at forums_forums and rescan every approved topic per batch.
+        $topics = $conn->getDriverName() === 'mysql'
+            ? $conn->raw($conn->getTablePrefix() . 'forums_topics as t FORCE INDEX (PRIMARY)')
+            : 'forums_topics as t';
+
+        return $conn->table($topics)
             ->join('forums_posts as fp', function ($join) {
                 $join->on('fp.pid', '=', 't.topic_firstpost')->on('fp.topic_id', '=', 't.tid');
             })
